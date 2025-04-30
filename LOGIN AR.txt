@@ -1,0 +1,129 @@
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using Firebase;
+using Firebase.Auth;
+using Firebase.Extensions;
+
+public class LoginPanelID : MonoBehaviour
+{
+    [SerializeField] private InputField emailInputField;
+    [SerializeField] private InputField passwordInputField;
+    [SerializeField] private Button loginButton;
+
+    [SerializeField] private GameObject errorPanel; 
+    [SerializeField] private Text errorHeadingText; 
+    [SerializeField] private Text errorText;    
+
+    [SerializeField] private GameObject forgotPasswordPanel; 
+
+    private FirebaseAuth auth;
+
+    void Start()
+    {   
+        auth = FirebaseAuth.DefaultInstance;
+
+        loginButton.onClick.AddListener(OnLoginButtonClicked);
+
+        if (!IsConnectedToInternet())
+        {
+            Debug.LogWarning("No internet connection");
+            ShowError("Connection Error", "No internet connection, please check your network");
+            return;
+        }
+    }
+
+    void OnLoginButtonClicked()
+    {
+        if (!IsConnectedToInternet())
+        {
+            Debug.LogWarning("No internet connection");
+            ShowError("Koneksi Internet Gagal", "Tidak ada koneksi internet, mohon cek koneksi internet Anda");
+            return;
+        }
+        
+        string email = emailInputField.text.Trim();
+        string password = passwordInputField.text;
+
+        if (string.IsNullOrEmpty(email) && string.IsNullOrEmpty(password))
+        {
+            Debug.LogWarning("Email and password are empty");
+            ShowError("Gagal Masuk", "Email dan kata sandi kosong");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(email))
+        {
+            Debug.LogWarning("Email is empty");
+            ShowError("Gagal Masuk", "Alamat email kosong");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            Debug.LogWarning("Password is empty");
+            ShowError("Gagal Masuk", "Kata sandi kosong");
+            return;
+        }
+
+        if (!IsValidEmail(email))
+        {
+            Debug.LogWarning("Email format is invalid");
+            ShowError("Gagal Masuk", "Alamat email tidak sesuai dengan format, email harus (seseorang@contoh.com)");
+            return;
+        }
+
+        if (password.Length < 8)
+        {
+            Debug.LogWarning("Password is too short");
+            ShowError("Gagal Masuk", "Kata sandi tidak valid, kata sandi harus minimal 8 karakter");
+            return;
+        }
+
+        auth.SignInWithEmailAndPasswordAsync(email, password).ContinueWithOnMainThread(task => {
+            if (task.IsCanceled || task.IsFaulted)
+            {
+                Debug.LogError("Login failed: " + task.Exception);
+                ShowError("Gagal Masuk", "Email or password is wrong");
+                return;
+            }
+ 
+            FirebaseUser user = task.Result.User;
+            Debug.Log("Login success: " + user.Email);
+            // ShowError("Login Success", "Welcome " + user.Email.ToString());
+            SceneManager.LoadScene("MainMenuID");
+        });
+    }
+
+    bool IsConnectedToInternet()
+    {
+        return Application.internetReachability != NetworkReachability.NotReachable;
+    }
+
+    bool IsValidEmail(string email)
+    {
+        string emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+        return System.Text.RegularExpressions.Regex.IsMatch(email, emailPattern);
+    }
+
+    void ShowError(string heading, string message)
+    {
+        errorPanel.SetActive(true);
+        errorHeadingText.text = heading;
+        errorText.text = message;
+    }
+
+    public void CloseErrorPopup()
+    {
+        if (IsConnectedToInternet())
+        {
+            Debug.Log("Connected to internet");
+            errorPanel.SetActive(false);
+        }
+        else
+        {
+            Debug.LogWarning("No internet connection");
+            ShowError("Koneksi Internet Gagal", "Tidak ada koneksi internet, mohon cek koneksi internet Anda");
+        }
+    }
+}
